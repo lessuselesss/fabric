@@ -55,6 +55,7 @@ type Flags struct {
 	PrintContext       string            `long:"printcontext" description:"Print context"`
 	PrintSession       string            `long:"printsession" description:"Print session"`
 	HtmlReadability    bool              `long:"readability" description:"Convert HTML input into a clean, readable view"`
+	InputHasVars       bool              `long:"input-has-vars" description:"Apply variables to user input"`
 	DryRun             bool              `long:"dry-run" description:"Show what would be sent to the model without actually sending it"`
 	Serve              bool              `long:"serve" description:"Serve the Fabric Rest API"`
 	ServeAddress       string            `long:"address" description:"The address to bind the REST API" default:":8080"`
@@ -63,8 +64,6 @@ type Flags struct {
 
 // Init Initialize flags. returns a Flags struct and an error
 func Init() (ret *Flags, err error) {
-	var message string
-
 	ret = &Flags{}
 	parser := flags.NewParser(ret, flags.Default)
 	var args []string
@@ -75,21 +74,19 @@ func Init() (ret *Flags, err error) {
 	info, _ := os.Stdin.Stat()
 	pipedToStdin := (info.Mode() & os.ModeCharDevice) == 0
 
+	//custom message
+	if len(args) > 0 {
+		ret.Message = AppendMessage(ret.Message, args[len(args)-1])
+	}
+
 	// takes input from stdin if it exists, otherwise takes input from args (the last argument)
 	if pipedToStdin {
-		//fmt.Printf("piped: %v\n", args)
-		if message, err = readStdin(); err != nil {
+		var pipedMessage string
+		if pipedMessage, err = readStdin(); err != nil {
 			return
 		}
-	} else if len(args) > 0 {
-		//fmt.Printf("no piped: %v\n", args)
-		message = args[len(args)-1]
-	} else {
-		//fmt.Printf("no data: %v\n", args)
-		message = ""
+		ret.Message = AppendMessage(ret.Message, pipedMessage)
 	}
-	ret.Message = message
-
 	return
 }
 
@@ -130,6 +127,7 @@ func (o *Flags) BuildChatRequest(Meta string) (ret *common.ChatRequest, err erro
 		SessionName:      o.Session,
 		PatternName:      o.Pattern,
 		PatternVariables: o.PatternVariables,
+		InputHasVars:     o.InputHasVars,
 		Meta:             Meta,
 	}
 
